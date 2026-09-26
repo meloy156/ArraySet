@@ -4,10 +4,10 @@ import java.util.*;
  * Множество на массиве
  * Неизменяемое упорядоченное множество, реализующее интерфейс SortedSet
  */
-public class ArraySet<T> implements SortedSet<T> {
+public class ArraySet<T> implements NavigableSet<T> {
 
     private final Comparator<? super T> comparator;
-    private final ArrayList<T> arrayList;
+    private final List<T> arrayList;
 
     public ArraySet(Collection<? extends T> collection, Comparator<? super T> comparator) {
         this.comparator = comparator;
@@ -31,6 +31,11 @@ public class ArraySet<T> implements SortedSet<T> {
     public ArraySet(ArraySet<T> other) {
         this.arrayList = new ArrayList<>(other.arrayList);
         this.comparator = other.comparator;
+    }
+
+    private ArraySet(List<T> view, Comparator<? super T> comparator, boolean isView) {
+        this.comparator = comparator;
+        this.arrayList = view;
     }
 
     private void removeDuplicates() {
@@ -86,14 +91,13 @@ public class ArraySet<T> implements SortedSet<T> {
         if (arrayList.isEmpty()) {
             throw new NoSuchElementException("ArraySet is empty");
         }
-        return arrayList.getFirst();
+        return arrayList.get(0);
     }
 
     @Override
     public SortedSet<T> headSet(T toElement) {
-        Objects.requireNonNull(toElement, "Element must not be null");
         int index_end = foundIndexForValue(toElement);
-        return new ArraySet<>(arrayList.subList(0, index_end), comparator);
+        return new ArraySet<>(arrayList.subList(0, index_end), comparator, true);
     }
 
     @Override
@@ -101,26 +105,38 @@ public class ArraySet<T> implements SortedSet<T> {
         if (arrayList.isEmpty()) {
             throw new NoSuchElementException("ArraySet is empty");
         }
-        return arrayList.getLast();
+        return arrayList.get(arrayList.size() - 1);
     }
 
     @Override
     public SortedSet<T> subSet(T fromElement, T toElement) {
-        Objects.requireNonNull(fromElement, "fromElement must not be null");
-        Objects.requireNonNull(toElement, "toElement must not be null");
         if (compare(fromElement, toElement) > 0) {
             throw new IllegalArgumentException("fromElement must not be greater that toElement");
         }
         int index_start = foundIndexForValue(fromElement);
         int index_end = foundIndexForValue(toElement);
-        return new ArraySet<>(arrayList.subList(index_start, index_end), comparator);
+        return new ArraySet<>(arrayList.subList(index_start, index_end), comparator, true);
     }
 
     @Override
     public SortedSet<T> tailSet(T fromElement) {
-        Objects.requireNonNull(fromElement, "fromElement must not be null");
         int index_start = foundIndexForValue(fromElement);
-        return new ArraySet<>(arrayList.subList(index_start, arrayList.size()), comparator);
+        return new ArraySet<>(arrayList.subList(index_start, arrayList.size()), comparator, true);
+    }
+
+    @Override
+    public T removeFirst() {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public T removeLast() {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public NavigableSet<T> reversed() {
+        return descendingSet();
     }
 
 
@@ -141,6 +157,46 @@ public class ArraySet<T> implements SortedSet<T> {
     }
 
     @Override
+    public T lower(T t) {
+        int index = foundIndexForValue(t);
+        return index > 0 ? arrayList.get(index - 1) : null;
+    }
+
+    @Override
+    public T floor(T t) {
+        int index = foundIndexForValue(t);
+        if (index < arrayList.size() && compare(arrayList.get(index), t) == 0) {
+            return arrayList.get(index);
+        }
+        return index > 0 ? arrayList.get(index - 1) : null;
+    }
+
+    @Override
+    public T ceiling(T t) {
+        int index = foundIndexForValue(t);
+        return index < arrayList.size() ? arrayList.get(index) : null;
+    }
+
+    @Override
+    public T higher(T t) {
+        int index = foundIndexForValue(t);
+        if (index < arrayList.size() && compare(arrayList.get(index), t) == 0) {
+            index++;
+        }
+        return index < arrayList.size() ? arrayList.get(index) : null;
+    }
+
+    @Override
+    public T pollFirst() {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public T pollLast() {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
     public Iterator<T> iterator() {
         return new Iterator<>() {
             private final Iterator<T> it = arrayList.iterator();
@@ -157,9 +213,86 @@ public class ArraySet<T> implements SortedSet<T> {
 
             @Override
             public void remove() {
-                throw new UnsupportedOperationException("ArraySet id immutable");
+                throw new UnsupportedOperationException("ArraySet is immutable");
             }
         };
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public NavigableSet<T> descendingSet() {
+        Comparator<? super T> revers = (comparator == null
+                ? (Comparator<? super T>) Comparator.reverseOrder()
+                : comparator.reversed());
+        return new ArraySet<>(arrayList.reversed(), revers, true);
+    }
+
+    @Override
+    public Iterator<T> descendingIterator() {
+        return new Iterator<>() {
+            private int cursor = arrayList.size() - 1;
+
+            @Override
+            public boolean hasNext() {
+                return cursor >= 0;
+            }
+
+            @Override
+            public T next() {
+                if (cursor < 0) {
+                    throw new NoSuchElementException();
+                }
+                return arrayList.get(cursor--);
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("ArraySet is immutable");
+            }
+        };
+    }
+
+    @Override
+    public NavigableSet<T> subSet(T fromElement, boolean fromInclusive, T toElement, boolean toInclusive) {
+        if (compare(fromElement, toElement) > 0) {
+            throw new IllegalArgumentException("fromElement must not be greater that toElement");
+        }
+
+        int index_start = foundIndexForValue(fromElement);
+        int index_end = foundIndexForValue(toElement);
+
+        if (!fromInclusive && index_start < arrayList.size() && compare(arrayList.get(index_start), fromElement) == 0) {
+            index_start++;
+        }
+
+        if (toInclusive && index_end < arrayList.size() && compare(arrayList.get(index_end), toElement) == 0) {
+            index_end++;
+        }
+
+        if (index_start > index_end) {
+            return new ArraySet<>(Collections.emptyList(), comparator, true);
+        }
+
+        return new ArraySet<>(arrayList.subList(index_start, index_end), comparator, true);
+    }
+
+    @Override
+    public NavigableSet<T> headSet(T toElement, boolean inclusive) {
+        int index_end = foundIndexForValue(toElement);
+        if (inclusive && index_end < arrayList.size() && compare(arrayList.get(index_end), toElement) == 0) {
+            index_end++;
+        }
+        return new ArraySet<>(arrayList.subList(0, index_end), comparator, true);
+    }
+
+    @Override
+    public NavigableSet<T> tailSet(T fromElement, boolean inclusive) {
+
+        int index_start = foundIndexForValue(fromElement);
+        if (!inclusive && index_start < arrayList.size() && compare(arrayList.get(index_start), fromElement) == 0) {
+            index_start++;
+        }
+        return new ArraySet<>(arrayList.subList(index_start, arrayList.size()), comparator, true);
     }
 
     @Override
