@@ -46,7 +46,6 @@ public class ArraySet<T> implements SortedSet<T> {
         arrayList.subList(write, arrayList.size()).clear();
     }
 
-    @SuppressWarnings("unchecked")
     private int compare(Object a, Object b) {
         if (comparator != null) {
             return comparator.compare((T) a, (T) b);
@@ -61,7 +60,7 @@ public class ArraySet<T> implements SortedSet<T> {
      * @param value - Объект который ищем
      * @return Index - индекс этого элемента
      */
-    private int foundIndexForValue(T value) {
+    private int foundIndexForValue(Object value) {
         int lo = 0;
         int hi = arrayList.size();
         while (lo < hi) {
@@ -125,6 +124,114 @@ public class ArraySet<T> implements SortedSet<T> {
     }
 
 
+    @Override
+    public int size() {
+        return arrayList.size();
+    }
 
+    @Override
+    public boolean isEmpty() {
+        return arrayList.isEmpty();
+    }
 
+    @Override
+    public boolean contains(Object o) {
+        int index = foundIndexForValue(o);
+        return index < arrayList.size() && compare(arrayList.get(index), o) == 0;
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+        return new Iterator<>() {
+            private final Iterator<T> it = arrayList.iterator();
+
+            @Override
+            public boolean hasNext() {
+                return it.hasNext();
+            }
+
+            @Override
+            public T next() {
+                return it.next();
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("ArraySet id immutable");
+            }
+        };
+    }
+
+    @Override
+    public Object[] toArray() {
+        return arrayList.toArray();
+    }
+
+    @Override
+    public <T1> T1[] toArray(T1[] a) {
+        return arrayList.toArray(a);
+    }
+
+    @Override
+    public boolean add(T t) {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public boolean remove(Object o) {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public boolean containsAll(Collection<?> c) {
+        for (Object o : c) {
+            if (!contains(o)) return false;
+        }
+        return true;
+    }
+
+    @Override
+    public boolean addAll(Collection<? extends T> c) {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public boolean retainAll(Collection<?> c) {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public boolean removeAll(Collection<?> c) {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public void clear() {
+        throw new UnsupportedOperationException("ArraySet is immutable");
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+
+        if (!(o instanceof Set<?> other)) {
+            return false;
+        }
+
+        if (other.size() != size()) {
+            return false;
+        }
+        return containsAll(other);
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 0;
+        for (T element : arrayList) {
+            hash += (element == null ? 0 : element.hashCode());
+        }
+        return hash;
+    }
 }
